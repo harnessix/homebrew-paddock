@@ -5,8 +5,8 @@
 class Paddock < Formula
   desc "Run any coding-agent harness with full auto-approval inside an isolated sandbox"
   homepage "https://github.com/harnessix/paddock"
-  url "https://github.com/harnessix/paddock/releases/download/v0.2.2/paddock-0.2.2.tar.gz"
-  sha256 "9fe051297384059972e6772fa6fd21a10eb57deb129c4f5858dee3a8e351ed83"
+  url "https://github.com/harnessix/paddock/releases/download/v0.2.3/paddock-0.2.3.tar.gz"
+  sha256 "c11b124996b411aaae9174f5f01079f74d2be1fc4b88f118d3456a42a0ad2149"
   license "MIT"
 
   depends_on "rust" => :build
@@ -16,13 +16,13 @@ class Paddock < Formula
   on_macos do
     on_arm do
       resource "vm-kernel" do
-        url "https://github.com/harnessix/paddock/releases/download/v0.2.2/kernel"
+        url "https://github.com/harnessix/paddock/releases/download/v0.2.3/kernel"
         sha256 "67bac9f416af4cdc9b151e4ba4962d6515e0ad7acc53816761cf964aa6af6ea0"
       end
 
       resource "vm-rootfs" do
-        url "https://github.com/harnessix/paddock/releases/download/v0.2.2/rootfs.img"
-        sha256 "81316e43dfb4e18e8cfdc1bf6ccd59e096a5e87c4ac652cd5d38b8997993b23a"
+        url "https://github.com/harnessix/paddock/releases/download/v0.2.3/rootfs.img"
+        sha256 "094826100f450319cac8a11dbe78fb924ca73302a6bab9ba9823ff71772b6ada"
       end
     end
   end
