@@ -1,10 +1,12 @@
-# Homebrew formula for paddock. The release workflow of harnessix/paddock
-# makes this file and attaches it to each release.
+# Homebrew formula for paddock. It builds from the source tarball of a
+# release. The release workflow fills in the version, the checksums, the
+# repository and the guest files of the VM, and attaches the result to the
+# release as paddock.rb. Copy that file into a tap.
 class Paddock < Formula
   desc "Run any coding-agent harness with full auto-approval inside an isolated sandbox"
   homepage "https://github.com/harnessix/paddock"
-  url "https://github.com/harnessix/paddock/releases/download/v0.2.1/paddock-0.2.1.tar.gz"
-  sha256 "c6406cf72af107508fe0e65158dfe36964971be2e874a322d8c688354dadd24a"
+  url "https://github.com/harnessix/paddock/releases/download/v0.2.2/paddock-0.2.2.tar.gz"
+  sha256 "9fe051297384059972e6772fa6fd21a10eb57deb129c4f5858dee3a8e351ed83"
   license "MIT"
 
   depends_on "rust" => :build
@@ -14,13 +16,13 @@ class Paddock < Formula
   on_macos do
     on_arm do
       resource "vm-kernel" do
-        url "https://github.com/harnessix/paddock/releases/download/v0.2.1/kernel"
+        url "https://github.com/harnessix/paddock/releases/download/v0.2.2/kernel"
         sha256 "67bac9f416af4cdc9b151e4ba4962d6515e0ad7acc53816761cf964aa6af6ea0"
       end
 
       resource "vm-rootfs" do
-        url "https://github.com/harnessix/paddock/releases/download/v0.2.1/rootfs.img"
-        sha256 "1e903e02eaa3ff6c6e13c2534b3c81c10039c10e9e4d843d2ffd5ff33cc82301"
+        url "https://github.com/harnessix/paddock/releases/download/v0.2.2/rootfs.img"
+        sha256 "81316e43dfb4e18e8cfdc1bf6ccd59e096a5e87c4ac652cd5d38b8997993b23a"
       end
     end
   end
@@ -28,6 +30,9 @@ class Paddock < Formula
   def install
     # paddock update and paddock doctor read the releases of this repository.
     ENV["PADDOCK_RELEASE_REPO"] = "harnessix/paddock"
+    # The source tarball of the release has no git checkout. This marks the
+    # build as the release, so `paddock --version` prints only the version.
+    ENV["PADDOCK_RELEASE_BUILD"] = "1"
     system "cargo", "install", *std_cargo_args
     return unless OS.mac?
 
@@ -38,6 +43,13 @@ class Paddock < Formula
            "--entitlements", "packaging/macos/paddock-vm.entitlements",
            bin/"paddock-vm"
     return unless Hardware::CPU.arm?
+
+    # paddock-guest is the agent inside paddock's macOS guest. A session
+    # shares it read-only, and the agent in the guest replaces itself with
+    # it when the versions differ, after a check of this hash. So a paddock
+    # upgrade never needs a rebuild of the golden image.
+    system "codesign", "--force", "--sign", "-", bin/"paddock-guest"
+    (bin/"paddock-guest.sha256").write("#{Digest::SHA256.file(bin/"paddock-guest").hexdigest}\n")
 
     # paddock finds the guest files here when `paddock vm setup` did not
     # install its own copy.
@@ -52,6 +64,10 @@ class Paddock < Formula
     if OS.mac?
       assert_match "com.apple.security.virtualization",
                    shell_output("codesign -d --entitlements - #{bin}/paddock-vm 2>&1")
+      if Hardware::CPU.arm?
+        assert_equal Digest::SHA256.file(bin/"paddock-guest").hexdigest,
+                     (bin/"paddock-guest.sha256").read.strip
+      end
     end
   end
 end
