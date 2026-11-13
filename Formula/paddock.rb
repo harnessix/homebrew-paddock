@@ -5,10 +5,20 @@
 class Paddock < Formula
   desc "Run any coding-agent harness with full auto-approval inside an isolated sandbox"
   homepage "https://github.com/harnessix/paddock"
-  url "https://github.com/harnessix/paddock/releases/download/v0.2.3/paddock-0.2.3.tar.gz"
-  sha256 "c11b124996b411aaae9174f5f01079f74d2be1fc4b88f118d3456a42a0ad2149"
+  url "https://github.com/harnessix/paddock/releases/download/v0.2.4/paddock-0.2.4.tar.gz"
+  sha256 "ee27d08bce6e60d6bd0f757ae90b75a5512b10bc9f9e0405bcfb0e28d1bb3d43"
   license "MIT"
 
+  # The terminal interface (tui/) becomes one self-contained program,
+  # paddock-tui, with `bun build --compile`: the same form as in a Linux
+  # release, so paddock finds and starts it in the same way. bun and node
+  # are in homebrew-core, and both are needed for the build only: node has
+  # npm, which installs the packages of tui/package-lock.json with their
+  # checksums, and it runs the TypeScript compiler. bun then puts the result
+  # and its own runtime into one file. With node alone, paddock-tui would
+  # be a script, and node would become a dependency of every install.
+  depends_on "bun" => :build
+  depends_on "node" => :build
   depends_on "rust" => :build
 
   # The guest files of the VM backend. The release workflow takes the URLs
@@ -16,13 +26,13 @@ class Paddock < Formula
   on_macos do
     on_arm do
       resource "vm-kernel" do
-        url "https://github.com/harnessix/paddock/releases/download/v0.2.3/kernel"
+        url "https://github.com/harnessix/paddock/releases/download/v0.2.4/kernel"
         sha256 "67bac9f416af4cdc9b151e4ba4962d6515e0ad7acc53816761cf964aa6af6ea0"
       end
 
       resource "vm-rootfs" do
-        url "https://github.com/harnessix/paddock/releases/download/v0.2.3/rootfs.img"
-        sha256 "094826100f450319cac8a11dbe78fb924ca73302a6bab9ba9823ff71772b6ada"
+        url "https://github.com/harnessix/paddock/releases/download/v0.2.4/rootfs.img"
+        sha256 "a8c2fe65fd29d5c5693e57d6ddb9643359114479f2825deae3ddcf24f5b2b319"
       end
     end
   end
@@ -34,6 +44,14 @@ class Paddock < Formula
     # build as the release, so `paddock --version` prints only the version.
     ENV["PADDOCK_RELEASE_BUILD"] = "1"
     system "cargo", "install", *std_cargo_args
+
+    # paddock-tui next to paddock. No package script runs. The target is
+    # this machine, so bun copies its own runtime and downloads no other.
+    cd "tui" do
+      system "npm", "ci", "--ignore-scripts"
+      system "npm", "run", "build"
+      system "bun", "scripts/bun-build.mjs", "native", bin/"paddock-tui"
+    end
     return unless OS.mac?
 
     # paddock-vm owns the Linux VM of the VM backend. The Virtualization
@@ -61,6 +79,8 @@ class Paddock < Formula
 
   test do
     assert_match "paddock #{version}", shell_output("#{bin}/paddock --version")
+    # A paddock-tui that lost its code prints the version of bun instead.
+    assert_equal "paddock-tui #{version}", shell_output("#{bin}/paddock-tui --version").strip
     if OS.mac?
       assert_match "com.apple.security.virtualization",
                    shell_output("codesign -d --entitlements - #{bin}/paddock-vm 2>&1")
